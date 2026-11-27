@@ -5532,10 +5532,27 @@
      getDefaultFallbackId(space, experiences) (module ~75797) gives
      experiences[1] for a space other than 'game' with more than 2 tiles (the
      one after the Store); an older version's strand.focus(0) came too early to change it.
-     For our spaces it gives the first tile of that space. */
+     For our spaces it gives the first tile of that space.
+     The stock Media tab had the same: experiences[1] skips All apps
+     (NPXS40056), which the Home expects first. With All apps hidden (by the
+     theme, or off the row) or not first, the focus landed on the 2nd tile.
+     There it gives the first tile that is not All apps or hidden; with All
+     apps first and shown, the Home's own choice stays. */
+  var ALL_APPS = 'NPXS40056', mediaFirstLogs = 0;
+  /* the Media row's first tile shown; null when that is All apps (the row
+     the Home expects) or there is none */
+  function mediaFirstTile(list) {
+    var hidden = removedIds();
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i];
+      if (!e || e.id == null || (e.spaceId != null && e.spaceId !== 'media') || hidden[e.id]) continue;
+      return e.id === ALL_APPS ? null : e.id;
+    }
+    return null;
+  }
   function hookDefaultTile(exp) {
     var fb = exp && exp.getDefaultFallbackId;
-    if (APP !== 'home' || !extraTabs().length || typeof fb !== 'function' ||
+    if (APP !== 'home' || typeof fb !== 'function' ||
         typeof exp.getDefaultSelectedId !== 'function' || fb.__theme) return;
     var wrapped = function (space, list) {
       if (isExtraSpace(space) && Array.isArray(list)) {
@@ -5547,7 +5564,18 @@
           }
         }
       }
-      return fb.apply(this, arguments);
+      var r = fb.apply(this, arguments);
+      if (space === 'media' && Array.isArray(list)) {
+        try {
+          var m = mediaFirstTile(list);
+          if (m != null && m !== r) {
+            done('media first tile');
+            if (mediaFirstLogs++ < 6) log('media first tile: ' + r + ' -> ' + m);
+            return m;
+          }
+        } catch (e) { log('media first tile error: ' + e); }
+      }
+      return r;
     };
     wrapped.__theme = true;
     if (replace(exp, 'getDefaultFallbackId', wrapped)) done('tabs: default tile');
