@@ -1,0 +1,56 @@
+# Builds release/ZhiThemes.elf for testing on a console (not part of any PR).
+# Toolchain as docs/BUILDING.md: LLVM 18, cmake, ninja, python3 with pyelftools, and the PS5 payload SDK with its
+# homebrew libraries (libcurl, OpenSSL, zlib...), from ps5-payload-dev/pacbrew-repo's release.
+name: build-elf
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      PACBREW: v0.41.1
+      PS5_PAYLOAD_SDK: /opt/ps5-payload-sdk
+      LLVM_CONFIG: /usr/lib/llvm-18/bin/llvm-config
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install the toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 lld-18 llvm-18 cmake ninja-build python3-pyelftools nodejs curl unzip
+          echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@v4
+        id: sdk
+        with:
+          path: /opt/ps5-payload-sdk
+          key: ps5-payload-sdk-${{ env.PACBREW }}
+      - name: The PS5 payload SDK with its homebrew libraries
+        if: steps.sdk.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL --retry 3 "https://github.com/ps5-payload-dev/pacbrew-repo/releases/download/$PACBREW/ps5-payload-dev.tar.gz" |
+            sudo tar -xz -C /
+          sudo chown -R "$USER" /opt/ps5-payload-sdk
+      - name: Check the SDK
+        run: |
+          for f in bin/prospero-cmake target/lib/libc++.a target/user/homebrew/lib/libcurl.a \
+                   target/user/homebrew/lib/libssl.a target/user/homebrew/etc/ca-bundle.crt; do
+            [[ -e $PS5_PAYLOAD_SDK/$f ]] || { echo "missing: $f"; exit 1; }
+          done
+      - name: Theme tests (no PS5)
+        run: |
+          node --check theme/theme.js
+          for app in home hub settings trophy; do
+            THEME_APP=$app node theme/theme_harness.js theme/theme.js > "harness-$app.json"
+            node -e 'const o=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); if (o.errors) { console.log(process.argv[1], "errors", o.errors); process.exit(1); }' "harness-$app.json"
+          done
+          node -e 'console.log("first tiles:", JSON.stringify(JSON.parse(require("fs").readFileSync("harness-home.json","utf8")).firstTile))'
+      - name: Build ZhiThemes.elf
+        run: bash scripts/build_zhithemes.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZhiThemes-elf
+          path: release/ZhiThemes.elf
+          if-no-files-found: error
