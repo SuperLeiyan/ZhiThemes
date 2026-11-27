@@ -48,7 +48,10 @@ jobs:
           done
           node -e 'console.log("first tiles:", JSON.stringify(JSON.parse(require("fs").readFileSync("harness-home.json","utf8")).firstTile))'
       - name: Build ZhiThemes.elf
-        run: bash scripts/build_zhithemes.sh
+        run: |
+          # the repository keeps its scripts without the executable bit; build.sh runs them as ./scripts/...
+          find scripts src/scripts -name '*.sh' -exec chmod +x {} +
+          bash scripts/build_zhithemes.sh
       - uses: actions/upload-artifact@v4
         with:
           name: ZhiThemes-elf
