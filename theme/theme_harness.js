@@ -171,6 +171,9 @@ const modules = {
   75797: function (module, exports) {
     exports.getDefaultFallbackId = (space, list) => (list.length > 2 ? list[1] : list[0]).id;
     exports.getDefaultSelectedId = (space, list) => exports.getDefaultFallbackId(space, list);
+    // the selected tile when it is still in the row, else the fallback
+    exports.findSelectedExperienceId = (o) =>
+      o.experiences.some((e) => e.id === o.selectedExperienceId) ? o.selectedExperienceId : o.fallbackId;
   },
   // entry: hub render (marginTop = SCALED - VERTICAL_HEIGHT_CHANGE)
   0: function (module, exports, req) {
@@ -315,6 +318,19 @@ const modules = {
       dt.getDefaultFallbackId('game', tiles('game', 'NPXS40047', 'G1', 'G2')),
       dt.getDefaultFallbackId('game', tiles('game', 'NPXS40037', 'G1', 'G2')),
       dt.getDefaultFallbackId('game', tiles('game', 'G1', 'G2', 'G3'))];
+    // the tab opened: the Home's default id (Welcome) is not in the row and the fallback is the 2nd tile
+    const open = (space, selected, ...ids) => {
+      const list = tiles(space, ...ids);
+      return dt.findSelectedExperienceId({ selectedExperienceId: selected, experiences: list, prevExperiences: [],
+                                           fallbackId: list[1].id });
+    };
+    exports.firstSelected = [
+      open('media', 'NPXS40063', 'M1', 'M2', 'M3'),
+      open('media', 'NPXS40063', 'NPXS40056', 'M1', 'M2'),
+      open('media', 'M2', 'M1', 'M2', 'M3'),
+      open('game', 'NPXS40063', 'G1', 'G2', 'G3'),
+      open('game', 'NPXS40063', 'NPXS40047', 'G1', 'G2'),
+      open('game', 'NPXS40063', 'NPXS40063', 'G1', 'G2')];
     // new: row spring, icon size, trophies, no clip
     exports.spring = req(1).Animated.spring(null, { stiffness: 256, damping: 21, mass: 0.1, overshootClamping: true });
     exports.iconSize = [req(100).SYSTEM_ICON_SIZE, req(100).SYSTEM_ICON_SIZE_NO_GLANCE];
@@ -375,6 +391,7 @@ const out = {
   gameName: entry.gameName, gameNameAfterFocus: entry.gameNameAfterFocus, hubFocus: entry.hubFocus, hubSections: entry.hubSections,
   spring: entry.spring, iconSize: entry.iconSize, trophy: entry.trophy, scroll: entry.scroll,
   firstTile: entry.firstTile,
+  firstSelected: entry.firstSelected,
   hubMarginTop: entry.hub.props.marginTop,
   headerShift: entry.shift,
   callRestored: Function.prototype.call.toString().includes('native code'),

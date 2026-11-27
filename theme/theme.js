@@ -8667,11 +8667,17 @@
       });
     }, 0);
   }
-  var tabFirstLogs = 0;
+  var tabFirstLogs = 0, selTraceLogs = 0;
+  /* the tab of a row: its tiles' spaceId */
+  function rowSpace(list) {
+    if (!Array.isArray(list)) return null;
+    for (var i = 0; i < list.length; i++)
+      if (list[i] && typeof list[i].spaceId === 'string') return list[i].spaceId;
+    return null;
+  }
+  /* installed with every theme: the stock tabs' first tile needs it too */
   function hookSelected(exp) {
-    if (!(THEME.hideStore || THEME.hideAllApps || THEME.hideGallery || THEME.hideTiles || THEME.folders ||
-          extraTabs().length) || APP !== 'home' ||
-        typeof exp.findSelectedExperienceId !== 'function' ||
+    if (APP !== 'home' || typeof exp.findSelectedExperienceId !== 'function' ||
         exp.findSelectedExperienceId.__theme)
       return;
     var original = exp.findSelectedExperienceId;
@@ -8704,6 +8710,23 @@
           var r = original.call(this, p);
           var fr = folderOfGame(r);
           if (fr && listHas(o.experiences, fr)) r = fr;
+          /* a stock tab opened with no tile of its own selected (the Home's
+             default id is not in the row) starts on its first tile, unless
+             that is the one the Home pins at the front */
+          if (selTraceLogs < 24 && !isTabRow(o.experiences)) {
+            selTraceLogs++;
+            log('select ' + rowSpace(o.experiences) + ': ' + o.selectedExperienceId + ' (fallback ' + o.fallbackId +
+                ') -> ' + r + ' [' + (Array.isArray(o.experiences) ? o.experiences.slice(0, 4).map(function (e) {
+                  return e && e.id; }).join(',') : '?') + ']', 'D');
+          }
+          if (!isTabRow(o.experiences) && !listHas(o.experiences, o.selectedExperienceId)) {
+            var space = rowSpace(o.experiences), m = space ? stockFirstTile(space, o.experiences) : null;
+            if (m != null && m !== r) {
+              done('first tile ' + space);
+              if (firstTileLogs++ < 6) log('first tile ' + space + ': ' + o.selectedExperienceId + ' -> ' + r + ' -> ' + m);
+              return m;
+            }
+          }
           if (r !== o.selectedExperienceId) {
             var ids5 = function (l) {
               return Array.isArray(l) ? l.slice(0, 5).map(function (e) { return e && e.id; }).join(',') : String(l);
