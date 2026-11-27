@@ -20,7 +20,8 @@ jobs:
       - name: Install the toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 lld-18 llvm-18 cmake ninja-build python3-pyelftools nodejs curl unzip
+          sudo apt-get install -y clang-18 lld-18 llvm-18 cmake ninja-build python3-pyelftools nodejs curl unzip \
+            librsvg2-bin pkg-config meson xz-utils libssl-dev make build-essential
           echo "/usr/lib/llvm-18/bin" >> "$GITHUB_PATH"
       - uses: actions/cache@v4
         id: sdk
