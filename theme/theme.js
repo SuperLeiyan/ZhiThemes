@@ -5533,20 +5533,22 @@
      experiences[1] for a space other than 'game' with more than 2 tiles (the
      one after the Store); an older version's strand.focus(0) came too early to change it.
      For our spaces it gives the first tile of that space.
-     The stock Media tab had the same: experiences[1] skips All apps
-     (NPXS40056), which the Home expects first. With All apps hidden (by the
-     theme, or off the row) or not first, the focus landed on the 2nd tile.
-     There it gives the first tile that is not All apps or hidden; with All
-     apps first and shown, the Home's own choice stays. */
-  var ALL_APPS = 'NPXS40056', mediaFirstLogs = 0;
-  /* the Media row's first tile shown; null when that is All apps (the row
-     the Home expects) or there is none */
-  function mediaFirstTile(list) {
-    var hidden = removedIds();
+     The stock tabs had the same: the Home skips the tile it pins at the front
+     (All apps, NPXS40056, on Media; the Store, PS Plus or Welcome on Games,
+     where Welcome is also the default tile). With those hidden (by the theme,
+     or off the row), the focus landed on the 2nd tile. There it gives the
+     first tile shown; with a front tile first, the Home's own choice stays. */
+  var FRONT_TILES = { media: { NPXS40056: true }, game: { NPXS40047: true, NPXS40037: true, NPXS40063: true } };
+  var firstTileLogs = 0;
+  /* a stock tab's first tile shown; null when that is one the Home pins at
+     the front (the row the Home expects) or there is none */
+  function stockFirstTile(space, list) {
+    var front = FRONT_TILES[space], hidden = removedIds();
+    if (!front) return null;
     for (var i = 0; i < list.length; i++) {
       var e = list[i];
-      if (!e || e.id == null || (e.spaceId != null && e.spaceId !== 'media') || hidden[e.id]) continue;
-      return e.id === ALL_APPS ? null : e.id;
+      if (!e || e.id == null || (e.spaceId != null && e.spaceId !== space) || hidden[e.id]) continue;
+      return front[e.id] ? null : e.id;
     }
     return null;
   }
@@ -5565,15 +5567,15 @@
         }
       }
       var r = fb.apply(this, arguments);
-      if (space === 'media' && Array.isArray(list)) {
+      if (Array.isArray(list)) {
         try {
-          var m = mediaFirstTile(list);
+          var m = stockFirstTile(space, list);
           if (m != null && m !== r) {
-            done('media first tile');
-            if (mediaFirstLogs++ < 6) log('media first tile: ' + r + ' -> ' + m);
+            done('first tile ' + space);
+            if (firstTileLogs++ < 6) log('first tile ' + space + ': ' + r + ' -> ' + m);
             return m;
           }
-        } catch (e) { log('media first tile error: ' + e); }
+        } catch (e) { log('first tile error: ' + e); }
       }
       return r;
     };
